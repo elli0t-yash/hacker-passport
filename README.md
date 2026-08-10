@@ -1,5 +1,7 @@
 # HH Goa 2026 — Task 1: Builder DNA / Crew Passport
 
+link: https://hhgoa-task1-builder-dna.vercel.app/
+
 A client-side HH Goa 2026 frame and ID generator built for `#FrameInGoa`.
 
 ## Why this concept
