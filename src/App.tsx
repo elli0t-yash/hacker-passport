@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, Download, Share2, Users } from 'lucide-react';
-import type { Builder } from './types';
+import type { Builder, Format } from './types';
 import { getBuilderDNA } from './lib/builderDNA';
 import { getActiveBuilders, getCrewClass } from './lib/crewDNA';
 import { downloadNode, sanitizeFilename, shareNode } from './lib/canvasExport';
 import { builderShareText, crewShareText } from './lib/share';
+import { getTheme, DEFAULT_THEME_ID } from './lib/themes';
+import { resolveFormat, autoBuilderFormat, autoCrewFormat, EXPORT_DIMENSIONS } from './lib/layout';
+import { readPersisted, writePersisted } from './lib/persist';
 
 import CustomCursor from './components/CustomCursor';
 import Navbar from './components/Navbar';
@@ -15,6 +18,8 @@ import BuilderCard from './components/BuilderCard';
 import CrewBuilder from './components/CrewBuilder';
 import CrewReveal from './components/CrewReveal';
 import CrewPassport from './components/CrewPassport';
+import ThemePicker from './components/ThemePicker';
+import FormatSelector from './components/FormatSelector';
 import HowItWorks from './components/HowItWorks';
 import Footer from './components/Footer';
 
@@ -24,6 +29,13 @@ const emptyBuilder = (id: string): Builder => ({ id, name: '', handle: '', stack
 
 const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+const LS_KEYS = {
+  builderTheme: 'hhgoa-builder-theme',
+  builderFormat: 'hhgoa-builder-format',
+  crewTheme: 'hhgoa-crew-theme',
+  crewFormat: 'hhgoa-crew-format',
+};
+
 export default function App() {
   const [builders, setBuilders] = useState<Builder[]>([emptyBuilder(crypto.randomUUID())]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -31,6 +43,41 @@ export default function App() {
   const [crewReveal, setCrewReveal] = useState<RevealState>('idle');
   const [builderStatus, setBuilderStatus] = useState('');
   const [crewStatus, setCrewStatus] = useState('');
+  const [styleStatus, setStyleStatus] = useState('');
+
+  const [builderThemeId, setBuilderThemeId] = useState(() => readPersisted(LS_KEYS.builderTheme, DEFAULT_THEME_ID));
+  const [builderFormat, setBuilderFormat] = useState<Format>(() => readPersisted(LS_KEYS.builderFormat, 'auto') as Format);
+  const [crewThemeId, setCrewThemeId] = useState<string | null>(() => {
+    const stored = readPersisted(LS_KEYS.crewTheme, '');
+    return stored || null;
+  });
+  const [crewFormat, setCrewFormat] = useState<Format>(() => readPersisted(LS_KEYS.crewFormat, 'auto') as Format);
+
+  const styleStatusTimer = useRef<number | undefined>(undefined);
+  const flashStyleStatus = (message: string) => {
+    setStyleStatus(message);
+    window.clearTimeout(styleStatusTimer.current);
+    styleStatusTimer.current = window.setTimeout(() => setStyleStatus(''), 1800);
+  };
+
+  const changeBuilderTheme = (id: string) => {
+    setBuilderThemeId(id);
+    writePersisted(LS_KEYS.builderTheme, id);
+    flashStyleStatus('UNIVERSE SWITCHED.');
+  };
+  const changeBuilderFormat = (format: Format) => {
+    setBuilderFormat(format);
+    writePersisted(LS_KEYS.builderFormat, format);
+    flashStyleStatus('VISUAL SIGNAL UPDATED.');
+  };
+  const changeCrewTheme = (id: string | null) => {
+    setCrewThemeId(id);
+    writePersisted(LS_KEYS.crewTheme, id ?? '');
+  };
+  const changeCrewFormat = (format: Format) => {
+    setCrewFormat(format);
+    writePersisted(LS_KEYS.crewFormat, format);
+  };
 
   const builderExportRef = useRef<HTMLDivElement>(null);
   const crewExportRef = useRef<HTMLDivElement>(null);
@@ -39,6 +86,15 @@ export default function App() {
   const activeDNA = getBuilderDNA(active);
   const crewDNA = getCrewClass(builders);
   const activeCrew = getActiveBuilders(builders);
+
+  const builderTheme = getTheme(builderThemeId);
+  const builderResolvedFormat = resolveFormat(builderFormat, autoBuilderFormat());
+  const builderDims = EXPORT_DIMENSIONS[builderResolvedFormat];
+
+  const crewTheme = getTheme(crewThemeId ?? builderThemeId);
+  const crewAutoFormat = autoCrewFormat(activeCrew.length);
+  const crewResolvedFormat = resolveFormat(crewFormat, crewAutoFormat);
+  const crewDims = EXPORT_DIMENSIONS[crewResolvedFormat];
 
   const updateBuilder = (index: number, next: Builder) => {
     setBuilders((prev) => prev.map((b, i) => (i === index ? next : b)));
@@ -61,7 +117,7 @@ export default function App() {
     setBuilderStatus('CALIBRATING...');
     try {
       const filename = `hhgoa-${sanitizeFilename(active.name || 'builder')}-builder-dna.png`;
-      await downloadNode(builderExportRef.current, filename);
+      await downloadNode(builderExportRef.current, filename, builderTheme.palette.background);
       setBuilderStatus('IDENTITY CLAIMED ✓');
     } catch (error) {
       console.error(error);
@@ -74,8 +130,8 @@ export default function App() {
     setBuilderStatus('CALIBRATING...');
     try {
       const filename = `hhgoa-${sanitizeFilename(active.name || 'builder')}-builder-dna.png`;
-      const text = builderShareText(activeDNA.archetype, active.stack);
-      const result = await shareNode(builderExportRef.current, filename, text);
+      const text = builderShareText(activeDNA.archetype, active.stack, builderTheme.name);
+      const result = await shareNode(builderExportRef.current, filename, text, builderTheme.palette.background);
       setBuilderStatus(result === 'native' ? 'SHARE SHEET OPENED ✓' : 'X OPENED ✓');
     } catch (error) {
       console.error(error);
@@ -88,7 +144,7 @@ export default function App() {
     setCrewStatus('CALIBRATING...');
     try {
       const filename = `hhgoa-${sanitizeFilename(crewDNA.name)}-crew-passport.png`;
-      await downloadNode(crewExportRef.current, filename);
+      await downloadNode(crewExportRef.current, filename, crewTheme.palette.background);
       setCrewStatus('PASSPORT CLAIMED ✓');
     } catch (error) {
       console.error(error);
@@ -102,7 +158,7 @@ export default function App() {
     try {
       const filename = `hhgoa-${sanitizeFilename(crewDNA.name)}-crew-passport.png`;
       const text = crewShareText(crewDNA.name, activeCrew.map((b) => b.name));
-      const result = await shareNode(crewExportRef.current, filename, text);
+      const result = await shareNode(crewExportRef.current, filename, text, crewTheme.palette.background);
       setCrewStatus(result === 'native' ? 'SHARE SHEET OPENED ✓' : 'X OPENED ✓');
     } catch (error) {
       console.error(error);
@@ -139,16 +195,29 @@ export default function App() {
       )}
 
       {builderReveal === 'revealed' && (
-        <section className="result-section">
-          <p className="section-kicker">YOUR BUILDER ID</p>
+        <section className="result-section" id="style">
+          <p className="section-kicker">02 // CHOOSE YOUR UNIVERSE</p>
+          <h2 className="section-title">
+            WHAT WORLD
+            <br />
+            DO YOU BUILD IN?
+          </h2>
+          <p className="crew-hint">Your DNA stays the same. Only the universe changes.</p>
+
+          <ThemePicker selectedId={builderThemeId} onSelect={changeBuilderTheme} />
+          <FormatSelector value={builderFormat} onChange={changeBuilderFormat} autoResolved={autoBuilderFormat()} />
+          {styleStatus && <p className="status-line status-line--style">{styleStatus}</p>}
+
           <div className="result-grid">
             <div className="preview-stage">
               <div className="preview-label">
-                <span>LIVE OUTPUT</span>
-                <span>1080&times;1350</span>
+                <span>LIVE OUTPUT &middot; {builderTheme.name}</span>
+                <span>{builderDims.width}&times;{builderDims.height}</span>
               </div>
-              <div ref={builderExportRef} className="export-wrap builder-export">
-                <BuilderCard builder={active} />
+              <div className={`preview-frame format-${builderResolvedFormat}`}>
+                <div ref={builderExportRef} className={`export-wrap format-${builderResolvedFormat}`}>
+                  <BuilderCard builder={active} theme={builderTheme} format={builderResolvedFormat} />
+                </div>
               </div>
             </div>
             <div className="result-actions">
@@ -170,7 +239,16 @@ export default function App() {
         </section>
       )}
 
-      <CrewBuilder builders={builders} onGenerate={() => setCrewReveal('revealing')} />
+      <CrewBuilder
+        builders={builders}
+        onGenerate={() => setCrewReveal('revealing')}
+        builderThemeId={builderThemeId}
+        crewThemeId={crewThemeId}
+        onCrewThemeChange={changeCrewTheme}
+        crewFormat={crewFormat}
+        onCrewFormatChange={changeCrewFormat}
+        autoCrewFormat={crewAutoFormat}
+      />
 
       {crewReveal === 'revealing' && (
         <CrewReveal crewClass={crewDNA.name} onComplete={() => setCrewReveal('revealed')} />
@@ -182,11 +260,13 @@ export default function App() {
           <div className="result-grid">
             <div className="preview-stage">
               <div className="preview-label">
-                <span>LIVE OUTPUT</span>
-                <span>1200&times;630</span>
+                <span>LIVE OUTPUT &middot; {crewTheme.name}</span>
+                <span>{crewDims.width}&times;{crewDims.height}</span>
               </div>
-              <div ref={crewExportRef} className="export-wrap crew-export">
-                <CrewPassport builders={builders} />
+              <div className={`preview-frame format-${crewResolvedFormat}`}>
+                <div ref={crewExportRef} className={`export-wrap format-${crewResolvedFormat}`}>
+                  <CrewPassport builders={builders} theme={crewTheme} format={crewResolvedFormat} />
+                </div>
               </div>
             </div>
             <div className="result-actions">

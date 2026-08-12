@@ -1,6 +1,7 @@
-export function builderShareText(archetype: string, stack: string) {
+export function builderShareText(archetype: string, stack: string, themeName?: string) {
   const url = window.location.origin;
-  return `Built my Builder DNA for Hacker House Goa '26 🌴\n\nClass: ${archetype}\nStack: ${stack || 'Multi-stack'}\n\nNow assembling the crew.\n\nDiscover yours ↓\n${url}\n\n#FrameInGoa #HHGOA2026`;
+  const universeLine = themeName && themeName !== 'BUILDER CITY' ? `\nUniverse: ${themeName}` : '';
+  return `Built my Builder DNA for Hacker House Goa '26 🌴\n\nClass: ${archetype}${universeLine}\nStack: ${stack || 'Multi-stack'}\n\nNow assembling the crew.\n\nDiscover yours ↓\n${url}\n\n#FrameInGoa #HHGOA2026`;
 }
 
 export function crewShareText(crewClass: string, memberNames: string[]) {

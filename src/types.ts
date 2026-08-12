@@ -7,17 +7,17 @@ export type Builder = {
   photo: string;
 };
 
+export type BuilderStatKey = 'vision' | 'velocity' | 'systems' | 'chaos';
+
 export type BuilderDNA = {
   archetype: string;
   motto: string;
   code: string;
-  stats: {
-    vision: number;
-    velocity: number;
-    systems: number;
-    chaos: number;
-  };
+  stats: Record<BuilderStatKey, number>;
 };
+
+export type Format = 'auto' | 'portrait' | 'landscape';
+export type ResolvedFormat = 'portrait' | 'landscape';
 
 export type CrewDNA = {
   name: string;

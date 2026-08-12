@@ -38,7 +38,7 @@ export default function DNAReveal({ stackChips, archetype, stats, onComplete }: 
           )) : <span>MULTI-STACK</span>}
         </div>
       )}
-      {showStats && !finalStep && <DNAStats stats={stats} animate theme="dark" />}
+      {showStats && !finalStep && <DNAStats stats={stats} animate />}
       <p className="dna-reveal-message" key={step}>{MESSAGES[step]}</p>
       {finalStep && (
         <div className="dna-reveal-class">

@@ -18,12 +18,14 @@ export function sanitizeFilename(input: string) {
     .slice(0, 60) || 'builder';
 }
 
-const captureOptions = {
-  pixelRatio: 2,
-  cacheBust: true,
-  backgroundColor: '#09070F',
-  style: { transform: 'none', margin: '0' },
-};
+function captureOptions(backgroundColor: string) {
+  return {
+    pixelRatio: 2,
+    cacheBust: true,
+    backgroundColor,
+    style: { transform: 'none', margin: '0' },
+  };
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -32,18 +34,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export async function downloadNode(node: HTMLElement, filename: string) {
+export async function downloadNode(node: HTMLElement, filename: string, backgroundColor = '#09070F') {
   await waitForFonts();
-  const dataUrl = await withTimeout(toPng(node, captureOptions), 15000);
+  const dataUrl = await withTimeout(toPng(node, captureOptions(backgroundColor)), 15000);
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = filename;
   a.click();
 }
 
-export async function shareNode(node: HTMLElement, filename: string, text: string) {
+export async function shareNode(node: HTMLElement, filename: string, text: string, backgroundColor = '#09070F') {
   await waitForFonts();
-  const blob = await withTimeout(toBlob(node, captureOptions), 15000);
+  const blob = await withTimeout(toBlob(node, captureOptions(backgroundColor)), 15000);
 
   if (!blob) throw new Error('Could not render image.');
   const file = new File([blob], filename, { type: 'image/png' });
